@@ -14,7 +14,7 @@ This module is not ready yet
 In your express app:
 ```
 var express = require('express');
-var mysgraphile = require('mysgraphile');
+var mysgraphile = require('@jesseteal/express-mysql-graphql');
 
 var app = express();
 
