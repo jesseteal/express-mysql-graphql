@@ -22,8 +22,10 @@ const db_connection_defaults = {
   password: '',
   database: ''
 }
-
+// https://stackoverflow.com/questions/31929774/how-to-reload-one-file-on-express-without-restarting
+// https://www.npmjs.com/package/express-route-refresh
 const mysgraphile = (config) => {
+  const t = (new Date()).getTime();
   const app = express();
   db.get_schema({
     connection: {
@@ -42,7 +44,7 @@ const mysgraphile = (config) => {
       schema,
       graphiql: !!config.enable_graphiql,
     }));
-  });
+  }).catch(e => console.error('get_schema error', e));
   return app;
 }
 

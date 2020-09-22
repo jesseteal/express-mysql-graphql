@@ -52,7 +52,7 @@ module.exports = {
         -- FK references
         select
         t.TABLE_NAME,
-        concat('\t',t.REFERENCED_TABLE_NAME,': ',t.REFERENCED_TABLE_NAME) as COLUMNS
+        concat('\t',t.REFERENCED_TABLE_NAME,'(where: String): ',t.REFERENCED_TABLE_NAME) as COLUMNS
         from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
         WHERE t.TABLE_SCHEMA='${schema}'
         AND t.REFERENCED_TABLE_NAME IS NOT NULL
@@ -64,12 +64,10 @@ module.exports = {
         from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
         WHERE t.TABLE_SCHEMA='${schema}'
         AND t.REFERENCED_TABLE_NAME IS NOT NULL
-        order by TABLE_NAME, COLUMNS
             ) q on q.TABLE_NAME=t.TABLE_NAME
             WHERE t.TABLE_SCHEMA='${schema}'
             AND TABLE_COMMENT not LIKE '@Omit'
             GROUP BY t.TABLE_NAME
-            order by t.TABLE_NAME
         )q1
         inner join
         (

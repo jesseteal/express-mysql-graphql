@@ -11,6 +11,7 @@ var config = {
   connectionLimit : 10,
 }
 
+const is_set = value => typeof value !== 'undefined'
 /*
   where examples:
     GQL:
@@ -37,48 +38,61 @@ var config = {
 const where_args = where => {
   const wheres = [];
   let params = [];
+  let fields = '*';
   if(where){
     const json = JSON.parse(where);
     for (var field in json) {
       if (json.hasOwnProperty(field)) {
         if(typeof json[field] === 'object'){
           if(json[field] === null){ // is null
-            wheres.push(`${field} IS NULL`);
+            wheres.push(`\`${field}\` IS NULL`);
           } else if(json[field].eq){
-            wheres.push(`${field} = ?`);
+            wheres.push(`\`${field}\` = ?`);
             params.push(json[field].eq)
-          } else if(json[field].neq){
-            wheres.push(`${field} <> ?`);
-            params.push(json[field].neq)
-          } else if(json[field].gt){
-            wheres.push(`${field} > ?`);
+          } else if(typeof json[field].neq !== 'undefined'){
+            if(json[field].neq === null){
+              wheres.push(`\`${field}\` IS NOT NULL`);
+            } else {
+              wheres.push(`\`${field}\` <> ?`);
+              params.push(json[field].neq)
+            }
+          } else if(is_set(json[field].gt)){
+            wheres.push(`\`${field}\` > ?`);
             params.push(json[field].gt)
-          } else if(json[field].gte){
-            wheres.push(`${field} >= ?`);
+          } else if(is_set(json[field].gte)){
+            wheres.push(`\`${field}\` >= ?`);
             params.push(json[field].gte)
-          } else if(json[field].lt){
-            wheres.push(`${field} < ?`);
+          } else if(is_set(json[field].lt)){
+            wheres.push(`\`${field}\` < ?`);
             params.push(json[field].lt)
-          } else if(json[field].lte){
-            wheres.push(`${field} <= ?`);
+          } else if(is_set(json[field].lte)){
+            wheres.push(`\`${field}\` <= ?`);
             params.push(json[field].lte)
           } else if(json[field].between){
-            wheres.push(`${field} between ? AND ?`);
+            wheres.push(`\`${field}\` between ? AND ?`);
             params = params.concat(json[field].between)
-          } else if(json[field].like){
-            wheres.push(`${field} like ?`);
+          } else if(is_set(json[field].like)){
+            wheres.push(`\`${field}\` like ?`);
             params.push(json[field].like)
+          } else if(json[field].in){
+            wheres.push(`\`${field}\` in (?)`);
+            params.push(json[field].in)
           }
         } else {
-          wheres.push(`${field} = ?`);
-          params.push(json[field]);
+          if(field === 'distinct'){
+            fields = 'distinct ' + json[field]
+          } else {
+            wheres.push(`\`${field}\` = ?`);
+            params.push(json[field]);
+          }
         }
       }
     }
   }
   return {
     wheres:where ? wheres.join(' AND ') : '',
-    params
+    params,
+    fields
   };
 }
 
@@ -106,6 +120,11 @@ const db = {
       .catch(console.log);
   },
 
+  first: async (...args) => {
+    const [rows] = await db.query(...args);
+    return rows[0];
+  },
+
   // manually disconnect
   quit: () => {
     db.pool.end();
@@ -116,16 +135,18 @@ const db = {
    */
   get_schema: async (options) => {
     db.config(options.connection);
-    db.init();
+    await db.init();
+    const conn = db.pool.promise();
     const custom_types = options.custom_types || '';
     const custom_queries = options.custom_queries || '';
     const custom_mutations = options.custom_mutations || '';
     const custom_query_resolvers = options.custom_query_resolvers || no_op;
     const custom_mutation_resolvers = options.custom_mutation_resolvers || no_op;
 
-    await db.query('SET SESSION group_concat_max_len=100000');
-    const [tables] = await db.query(K.SQL_SCHEMA(config.database));
-    const [relationships] = await db.query(K.SQL_RELATIONSHIPS(config.database));
+    await conn.query('SET SESSION group_concat_max_len=900000');
+    await conn.query('SET GLOBAL group_concat_max_len=900000');
+    const [tables] = await conn.query(K.SQL_SCHEMA(config.database));
+    const [relationships] = await conn.query(K.SQL_RELATIONSHIPS(config.database));
     const types = tables.map(r => r.types).join('\n') + `
       scalar Date
       scalar DateTime
@@ -166,7 +187,7 @@ const db = {
             return null;
           }
           const { table, type } = args;
-          var [rows] = await db.query(`select
+          var [rows] = await conn.query(`select
               COLUMN_NAME as \`column\`
               ,case WHEN IS_NULLABLE = 'NO' AND COLUMN_KEY <> 'PRI' then 1 else 0 end as required
               ,case when DATA_TYPE IN ('bigint','int','tinyint') then 'int'
@@ -179,12 +200,10 @@ const db = {
             order by ORDINAL_POSITION`);
           return rows;
         },
-        ...custom_query_resolvers(db)
         // <query name>: (parent, args) => {...},
         // <query name>: (parent, args) => {...},
       },
       Mutation: {
-        ...custom_mutation_resolvers(db)
         // <query name>: (parent, args) => {...},
       },
       // sub resolvers
@@ -200,9 +219,10 @@ const db = {
       // 'get' resolver
       resolvers.Query[t.TABLE_NAME] = async (obj, args) => {
         const { limit, offset, where, order } = args;
-        const { wheres, params } = where_args(where);
-        var [rows] = await db.query(`select * from ${t.TABLE_NAME}
-          ${where ? 'where ' + wheres : ''}
+        const { wheres, params, fields } = where_args(where);
+        // console.log('sql',`select ${fields} from ${t.TABLE_NAME} ${wheres ? 'where ' + wheres : ''} ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''} ${limit ? 'limit ' + parseInt(limit,10) : ''} ${offset ? 'offset ' + parseInt(offset,10) : ''} `);
+        var [rows] = await conn.query(`select ${fields} from ${t.TABLE_NAME}
+          ${wheres ? 'where ' + wheres : ''}
           ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''}
           ${limit ? 'limit ' + parseInt(limit,10) : ''}
           ${offset ? 'offset ' + parseInt(offset,10) : ''}
@@ -218,7 +238,7 @@ const db = {
         const values = [];
         // BEFORE INSERT
         if(options.hooks.before_insert){
-          input = await options.hooks.before_insert(t.TABLE_NAME, input, db);
+          input = await options.hooks.before_insert(t.TABLE_NAME, input, db, resolvers);
           if(input === false){
             return 0;
           }
@@ -227,11 +247,11 @@ const db = {
           columns.push(field);
           values.push(input[field]);
         }
-        let id = await db.query(`INSERT INTO ${t.TABLE_NAME} (\`${columns.join('\`,\`')}\`) values (${columns.map(c => '?').join(',')})`,values)
+        let id = await conn.query(`INSERT IGNORE INTO ${t.TABLE_NAME} (\`${columns.join('\`,\`')}\`) values (${columns.map(c => '?').join(',')})`,values)
           .then(r => r[0].insertId);
 
         if(options.hooks.after_insert){
-          await options.hooks.after_insert(t.TABLE_NAME, { id, ...input }, db);
+          await options.hooks.after_insert(t.TABLE_NAME, { id, ...input }, db, resolvers);
         }
         return id;
       };
@@ -250,16 +270,20 @@ const db = {
         });
         if(all_keys_found){
           if(options.hooks.before_delete){
-            const ok = await options.hooks.before_delete(t.TABLE_NAME, input, db);
+            const ok = await options.hooks.before_delete(t.TABLE_NAME, input, db, resolvers);
             if(ok === false){
               return "Delete refused by pre-delete check";
             }
           }
-          const [res] = await db.query(`DELETE FROM ${t.TABLE_NAME} WHERE ${columns.join(' AND ')}`,values);
           if(options.hooks.after_delete){
-            await options.hooks.after_delete(t.TABLE_NAME, input, db);
+            const model = await db.first(`select * from ${t.TABLE_NAME} where ${columns.join(' AND ')}`,values);
+            const [res] = await conn.query(`DELETE FROM ${t.TABLE_NAME} WHERE ${columns.join(' AND ')}`,values);
+            await options.hooks.after_delete(t.TABLE_NAME, model, db, resolvers);
+            return `${res.affectedRows} row(s) deleted.`;
+          } else {
+            const [res] = await conn.query(`DELETE FROM ${t.TABLE_NAME} WHERE ${columns.join(' AND ')}`,values);
+            return `${res.affectedRows} row(s) deleted.`;
           }
-          return `${res.affectedRows} row(s) deleted.`;
         }
         return "Delete Failed - missing primary keys";
       };
@@ -282,7 +306,7 @@ const db = {
           const fields = [];
           const values = [];
           if(options.hooks.before_update){
-            input = await options.hooks.before_update(t.TABLE_NAME, input, db);
+            input = await options.hooks.before_update(t.TABLE_NAME, input, db, resolvers);
             if(input === false){
               return null;
             }
@@ -299,19 +323,18 @@ const db = {
               update_params.push(input[field]);
             }
           }
-          await db.query(`UPDATE ${t.TABLE_NAME}
+          await conn.query(`UPDATE ${t.TABLE_NAME}
             SET ${sets.join(',')}
             WHERE ${set_where.join(' AND ')}
           `,update_params.concat(where_params));
 
-
           // return
           const where = keys.map(key => `${key}=?`).join(' AND ');
           const params = keys.map(key => input[key]);
-          var [rows] = await db.query(`select * from ${t.TABLE_NAME} where ${where}`, params);
+          var [rows] = await conn.query(`select * from ${t.TABLE_NAME} where ${where}`, params);
 
           if(options.hooks.after_update){
-            await options.hooks.after_update(t.TABLE_NAME, input, db, rows[0]);
+            await options.hooks.after_update(t.TABLE_NAME, input, db, rows[0], resolvers);
           }
 
           return rows[0];
@@ -335,7 +358,11 @@ const db = {
 
       `;
       resolvers[TABLE_NAME][LINKED_TABLE] = async (parent, args) => {
-        const [rows] = await db.query(sql,[parent[FROM_COL]]);
+        const { where } = args;
+        const { wheres, params } = where_args(where);
+        var [rows] = await conn.query(`${sql}
+          ${wheres ? 'AND ' + wheres : ''}
+          `, [parent[FROM_COL],...params]);
         return rows[0];
       }
     }
@@ -349,18 +376,55 @@ const db = {
         resolvers[LINKED_TABLE] = {}
       }
       const sql = `SELECT * FROM ${TABLE_NAME} WHERE ${FROM_COL} = ?`;
-      resolvers[LINKED_TABLE][TABLE_NAME] = async (parent, args) => {
-        const { limit, offset, where, order } = args;
-        const { wheres, params } = where_args(where);
-        const [rows] = await db.query(`${sql}
-          ${where ? ' AND ' + wheres : ''}
-          ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''}
-          ${limit ? 'limit ' + parseInt(limit,10) : ''}
-          ${offset ? 'offset ' + parseInt(offset,10) : ''}
-        `,[parent[TO_COL]].concat(params));
-        return rows;
+      // name collision
+      if(resolvers[LINKED_TABLE][TABLE_NAME]){
+        // already exists...
+      }
+      // OPINIONATED: fk matches pk
+      if(FROM_COL === TO_COL || TO_COL === 'id'){
+        resolvers[LINKED_TABLE][TABLE_NAME] = async (parent, args) => {
+          const { limit, offset, where, order } = args;
+          const { wheres, params } = where_args(where);
+          const [rows] = await conn.query(`${sql}
+            ${where ? ' AND ' + wheres : ''}
+            ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''}
+            ${limit ? 'limit ' + parseInt(limit,10) : ''}
+            ${offset ? 'offset ' + parseInt(offset,10) : ''}
+          `,[parent[TO_COL]].concat(params));
+          return rows;
+        }
+      } else { // fk and pk names don't match
+        // resolvers[LINKED_TABLE][`${TABLE_NAME}${FROM_COL}`] = async (parent, args) => {
+        //   const { limit, offset, where, order } = args;
+        //   const { wheres, params } = where_args(where);
+        //   const [rows] = await conn.query(`${sql}
+        //     ${where ? ' AND ' + wheres : ''}
+        //     ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''}
+        //     ${limit ? 'limit ' + parseInt(limit,10) : ''}
+        //     ${offset ? 'offset ' + parseInt(offset,10) : ''}
+        //   `,[parent[TO_COL]].concat(params));
+        //   return rows;
+        // }
+      }
+
+    }
+
+    // add custom resolvers after to allow overrides
+    if(options.custom_query_resolvers){
+      resolvers.Query = {
+        ...resolvers.Query,
+        // <query name>: async (parent, args) => {...},
+        ...options.custom_query_resolvers(db)
       }
     }
+    if(options.custom_mutation_resolvers){
+      resolvers.Mutation = {
+        ...resolvers.Mutation,
+        // <query name>: async (parent, args) => {...},
+        ...options.custom_mutation_resolvers(db)
+      }
+    }
+
 
     const schemaDef = makeExecutableSchema({
       // https://www.graphql-tools.com/docs/generate-schema
