@@ -316,10 +316,10 @@ const db = {
             values.push(input[field]);
             if(keys.indexOf(field) > -1){
               // pkey
-              set_where.push(`${field}=?`);
+              set_where.push(`\`${field}\`=?`);
               where_params.push(input[field]);
             } else {
-              sets.push(`${field}=?`);
+              sets.push(`\`${field}\`=?`);
               update_params.push(input[field]);
             }
           }
@@ -357,7 +357,8 @@ const db = {
         WHERE ${TO_COL} = ?
 
       `;
-      resolvers[TABLE_NAME][LINKED_TABLE] = async (parent, args) => {
+
+      resolvers[TABLE_NAME][`${FROM_COL}_${LINKED_TABLE}`] = async (parent, args) => {
         const { where } = args;
         const { wheres, params } = where_args(where);
         var [rows] = await conn.query(`${sql}
@@ -377,9 +378,11 @@ const db = {
       }
       const sql = `SELECT * FROM ${TABLE_NAME} WHERE ${FROM_COL} = ?`;
       // name collision
-      if(resolvers[LINKED_TABLE][TABLE_NAME]){
-        // already exists...
-      }
+      // if(resolvers[LINKED_TABLE][TABLE_NAME]){
+      //   // already exists...
+      //
+      // }
+
       // OPINIONATED: fk matches pk
       if(FROM_COL === TO_COL || TO_COL === 'id'){
         resolvers[LINKED_TABLE][TABLE_NAME] = async (parent, args) => {
@@ -424,7 +427,6 @@ const db = {
         ...options.custom_mutation_resolvers(db)
       }
     }
-
 
     const schemaDef = makeExecutableSchema({
       // https://www.graphql-tools.com/docs/generate-schema

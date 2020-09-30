@@ -52,7 +52,7 @@ module.exports = {
         -- FK references
         select
         t.TABLE_NAME,
-        concat('\t',t.REFERENCED_TABLE_NAME,'(where: String): ',t.REFERENCED_TABLE_NAME) as COLUMNS
+        concat('\t',t.COLUMN_NAME,'_',t.REFERENCED_TABLE_NAME,'(where: String): ',t.REFERENCED_TABLE_NAME) as COLUMNS
         from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
         WHERE t.TABLE_SCHEMA='${schema}'
         AND t.REFERENCED_TABLE_NAME IS NOT NULL
