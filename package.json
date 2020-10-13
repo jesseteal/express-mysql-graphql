@@ -1,6 +1,6 @@
 {
   "name": "@jesseteal/express-mysql-graphql",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Instant graphql endpoint for express / mysql",
   "main": "module.js",
   "repository": {
