@@ -12,6 +12,23 @@ var config = {
 }
 
 const is_set = value => typeof value !== 'undefined'
+
+// allow restricting table/row access based on user token
+// by defining a function that returns a WHERE fragment of SQL
+// format: {
+//  table_name: token => if(token.bad) return '1=0'
+//
+//  posts: token => return 'author_id=' + token.sub
+// }
+const access_resolver = (table, token, options) => {
+  // console.log('access_resolver',table, token);
+  // console.log('options.access_limit',options.access_limit);
+  if(options && options.access_limit && options.access_limit[table]){
+    return options.access_limit[table](token);
+  }
+  return null;
+}
+
 /*
   where examples:
     GQL:
@@ -35,22 +52,42 @@ const is_set = value => typeof value !== 'undefined'
     IS NULL
     { userId: null }
  */
-const where_args = where => {
+const where_args = (where, table, token, options) => {
   const wheres = [];
+  const access_limit = access_resolver(table, token, options);
+  if(access_limit){
+    wheres.push(access_limit);
+  }
   let params = [];
   let fields = '*';
   if(where){
     const json = JSON.parse(where);
     for (var field in json) {
       if (json.hasOwnProperty(field)) {
+        const lcfield = field.toLowerCase();
         if(typeof json[field] === 'object'){
-          if(json[field] === null){ // is null
+          if(['or','and'].indexOf(lcfield) > -1){ // { AND : [{ field1: 1}, { field2: "OK" } ]}
+            const parts = json[field]; // array of objects
+            const sub_where = [];
+            for (var w of parts) {
+              const r = where_args(JSON.stringify(w), table, token, options);
+              sub_where.push(r.wheres);
+              if(r.params.length > 0){
+                params.push.apply(params, r.params)
+              }
+            }
+            if(lcfield === 'and'){
+              wheres.push('(' + sub_where.join(` AND `) + ')')
+            } else {
+              wheres.push('(' + sub_where.join(' OR ') + ')')
+            }
+          } else if(json[field] === null){ // { field: null }
             wheres.push(`\`${field}\` IS NULL`);
           } else if(json[field].eq){
             wheres.push(`\`${field}\` = ?`);
             params.push(json[field].eq)
           } else if(typeof json[field].neq !== 'undefined'){
-            if(json[field].neq === null){
+            if(json[field].neq === null){ // { xxx : { neq: null }}
               wheres.push(`\`${field}\` IS NOT NULL`);
             } else {
               wheres.push(`\`${field}\` <> ?`);
@@ -79,7 +116,7 @@ const where_args = where => {
             params.push(json[field].in)
           }
         } else {
-          if(field === 'distinct'){
+          if(field === 'distinct'){ // { distinct: 'field'}
             fields = 'distinct ' + json[field]
           } else {
             wheres.push(`\`${field}\` = ?`);
@@ -90,7 +127,7 @@ const where_args = where => {
     }
   }
   return {
-    wheres:where ? wheres.join(' AND ') : '',
+    wheres:wheres.length > 0 ? wheres.join(' AND ') : '',
     params,
     fields
   };
@@ -217,9 +254,11 @@ const db = {
     const root = {};
     tables.forEach(t => {
       // 'get' resolver
-      resolvers.Query[t.TABLE_NAME] = async (obj, args) => {
+      resolvers.Query[t.TABLE_NAME] = async (obj, args, req) => {
+        // console.log('req.user',req.user);
+        // console.log('resolving',t.TABLE_NAME);
         const { limit, offset, where, order } = args;
-        const { wheres, params, fields } = where_args(where);
+        const { wheres, params, fields } = where_args(where, t.TABLE_NAME, req.user, options);
         // console.log('sql',`select ${fields} from ${t.TABLE_NAME} ${wheres ? 'where ' + wheres : ''} ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''} ${limit ? 'limit ' + parseInt(limit,10) : ''} ${offset ? 'offset ' + parseInt(offset,10) : ''} `);
         var [rows] = await conn.query(`select ${fields} from ${t.TABLE_NAME}
           ${wheres ? 'where ' + wheres : ''}
@@ -355,12 +394,10 @@ const db = {
       const sql = `SELECT * FROM
         ${LINKED_TABLE}
         WHERE ${TO_COL} = ?
-
       `;
-
-      resolvers[TABLE_NAME][`${FROM_COL}_${LINKED_TABLE}`] = async (parent, args) => {
+      resolvers[TABLE_NAME][`${FROM_COL}_${LINKED_TABLE}`] = async (parent, args, req) => {
         const { where } = args;
-        const { wheres, params } = where_args(where);
+        const { wheres, params } = where_args(where, LINKED_TABLE, req.user, options);
         var [rows] = await conn.query(`${sql}
           ${wheres ? 'AND ' + wheres : ''}
           `, [parent[FROM_COL],...params]);
@@ -382,12 +419,11 @@ const db = {
       //   // already exists...
       //
       // }
-
       // OPINIONATED: fk matches pk
       if(FROM_COL === TO_COL || TO_COL === 'id'){
-        resolvers[LINKED_TABLE][TABLE_NAME] = async (parent, args) => {
+        resolvers[LINKED_TABLE][TABLE_NAME] = async (parent, args, req) => {
           const { limit, offset, where, order } = args;
-          const { wheres, params } = where_args(where);
+          const { wheres, params } = where_args(where, TABLE_NAME, req.user, options);
           const [rows] = await conn.query(`${sql}
             ${where ? ' AND ' + wheres : ''}
             ${order ? ('order by ' + order.replace(/[;-]/g,'')) : ''}

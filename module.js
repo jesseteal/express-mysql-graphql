@@ -34,6 +34,7 @@ const mysgraphile = (config) => {
     },
     enable_schema_query: !!config.enable_schema_query,
     hooks: config.hooks || {},
+    access_limit: config.access_limit || null,
     custom_types: config.custom_types || null,
     custom_queries: config.custom_queries || null,
     custom_mutations: config.custom_mutations || null,
