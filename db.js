@@ -137,6 +137,8 @@ const no_op = () => null
 
 const db = {
 
+  dlog: console.log,
+
   // store passed options in local var
   config: options => {
     config = {...config, ...options};
@@ -145,6 +147,7 @@ const db = {
   // connect to db if not yet connected
   init: async () => {
     if(typeof db.pool === 'undefined'){
+      db.dlog('create pool')
       db.pool = await mysql.createPool(config);
     }
   },
@@ -153,8 +156,9 @@ const db = {
   query: async (...args) => {
     await db.init();
     const conn = db.pool.promise();
+    db.dlog('query',{...args})
     return await conn.query(...args)
-      .catch(console.log);
+      .catch(db.dlog);
   },
 
   first: async (...args) => {
@@ -171,6 +175,7 @@ const db = {
    * pull table/column data from database to construct GraphQL schema
    */
   get_schema: async (options) => {
+    db.dlog('get_schema')
     db.config(options.connection);
     await db.init();
     const conn = db.pool.promise();
@@ -252,6 +257,7 @@ const db = {
 
 
     const root = {};
+    const logger = db.dlog
     tables.forEach(t => {
       // 'get' resolver
       resolvers.Query[t.TABLE_NAME] = async (obj, args, req) => {
@@ -273,11 +279,12 @@ const db = {
       const createName = 'create' + t.TABLE_NAME;
       resolvers.Mutation[createName] = async (obj, args) => {
         let { input } = args;
+        logger('mutation',createName, input)
         const columns = [];
         const values = [];
         // BEFORE INSERT
         if(options.hooks.before_insert){
-          input = await options.hooks.before_insert(t.TABLE_NAME, input, db, resolvers);
+          input = await options.hooks.before_insert(t.TABLE_NAME, input, db, resolvers).catch(db.dlog);
           if(input === false){
             return 0;
           }
@@ -287,10 +294,11 @@ const db = {
           values.push(input[field]);
         }
         let id = await conn.query(`INSERT IGNORE INTO ${t.TABLE_NAME} (\`${columns.join('\`,\`')}\`) values (${columns.map(c => '?').join(',')})`,values)
-          .then(r => r[0].insertId);
+          .then(r => r[0].insertId)
+          .catch(db.dlog);
 
         if(options.hooks.after_insert){
-          await options.hooks.after_insert(t.TABLE_NAME, { id, ...input }, db, resolvers);
+          await options.hooks.after_insert(t.TABLE_NAME, { id, ...input }, db, resolvers).catch(db.dlog);
         }
         return id;
       };
@@ -379,7 +387,7 @@ const db = {
           return rows[0];
         } else {
           // error, insuficient key definition (not all unique columns identified)
-          console.log('Bad Update, not all keys provided');
+          logger('Bad Update, not all keys provided');
           return null; // TODO: pass up as error
         }
       };
