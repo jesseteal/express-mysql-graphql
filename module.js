@@ -25,7 +25,7 @@ const db_connection_defaults = {
 // https://stackoverflow.com/questions/31929774/how-to-reload-one-file-on-express-without-restarting
 // https://www.npmjs.com/package/express-route-refresh
 const mysgraphile = (config) => {
-  const dlog = config.log_function ?? console.log
+  const dlog = config.log_function ? config.log_function : console.log
   db.dlog = dlog // pass logger to data layer
   dlog('graphql configuration initiated');
   const t = (new Date()).getTime();
