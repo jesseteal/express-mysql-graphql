@@ -49,10 +49,13 @@ const where_args = (
   where: string,
   table: string,
   token: SimpleObject,
-  options: MySQLGraphQLConfig
+  options: MySQLGraphQLConfig,
+  subgraph?: boolean
 ): WhereArgs => {
   const wheres = [];
-  const access_limit = options.rules?.[table]?.restrict?.(token);
+  const access_limit = subgraph
+    ? options.rules?.[table]?.restrict_subgraph?.(token)
+    : options.rules?.[table]?.restrict?.(token);
   if (access_limit) {
     wheres.push(access_limit);
   }
@@ -508,7 +511,8 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
         where,
         LINKED_TABLE,
         req.user,
-        options
+        options,
+        true // subgraph
       );
       var [rows] = await conn.query(
         `${sql}
@@ -546,7 +550,8 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
           where,
           TABLE_NAME,
           req.user,
-          options
+          options,
+          true
         );
         const [rows] = await conn.query(
           `${sql}

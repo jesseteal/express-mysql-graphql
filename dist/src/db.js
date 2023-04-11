@@ -92,10 +92,12 @@ var is_set = function (value) { return typeof value !== "undefined"; };
     IS NULL
     { userId: null }
  */
-var where_args = function (where, table, token, options) {
-    var _a, _b, _c;
+var where_args = function (where, table, token, options, subgraph) {
+    var _a, _b, _c, _d, _e, _f;
     var wheres = [];
-    var access_limit = (_c = (_b = (_a = options.rules) === null || _a === void 0 ? void 0 : _a[table]) === null || _b === void 0 ? void 0 : _b.restrict) === null || _c === void 0 ? void 0 : _c.call(_b, token);
+    var access_limit = subgraph
+        ? (_c = (_b = (_a = options.rules) === null || _a === void 0 ? void 0 : _a[table]) === null || _b === void 0 ? void 0 : _b.restrict_subgraph) === null || _c === void 0 ? void 0 : _c.call(_b, token)
+        : (_f = (_e = (_d = options.rules) === null || _d === void 0 ? void 0 : _d[table]) === null || _e === void 0 ? void 0 : _e.restrict) === null || _f === void 0 ? void 0 : _f.call(_e, token);
     if (access_limit) {
         wheres.push(access_limit);
     }
@@ -599,7 +601,8 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                             switch (_b.label) {
                                 case 0:
                                     where = args.where;
-                                    _a = where_args(where, LINKED_TABLE, req.user, options), wheres = _a.wheres, params = _a.params;
+                                    _a = where_args(where, LINKED_TABLE, req.user, options, true // subgraph
+                                    ), wheres = _a.wheres, params = _a.params;
                                     return [4 /*yield*/, conn.query("".concat(sql, "\n          ").concat(wheres ? "AND " + wheres : "", "\n          "), __spreadArray([parent[FROM_COL]], params, true))];
                                 case 1:
                                     rows = (_b.sent())[0];
@@ -632,7 +635,7 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                                 switch (_b.label) {
                                     case 0:
                                         limit = args.limit, offset = args.offset, where = args.where, order = args.order;
-                                        _a = where_args(where, TABLE_NAME, req.user, options), wheres = _a.wheres, params = _a.params;
+                                        _a = where_args(where, TABLE_NAME, req.user, options, true), wheres = _a.wheres, params = _a.params;
                                         return [4 /*yield*/, conn.query("".concat(sql, "\n            ").concat(where ? " AND " + wheres : "", "\n            ").concat(order ? "order by " + order.replace(/[;-]/g, "") : "", "\n            ").concat(limit ? "limit " + parseInt(limit, 10) : "", "\n            ").concat(offset ? "offset " + parseInt(offset, 10) : "", "\n          "), [parent[TO_COL]].concat(params))];
                                     case 1:
                                         rows = (_b.sent())[0];

@@ -61,6 +61,7 @@ export interface RuleDefinition {
    * AND is used
    */
   restrict?: (jwt: SimpleObject) => string;
+  restrict_subgraph?: (jwt: SimpleObject) => string;
 }
 
 export interface RuleDefinitionSet {
