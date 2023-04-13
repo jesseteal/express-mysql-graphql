@@ -145,6 +145,7 @@ export interface MySQLGraphQLConfig {
   graphql_path?: string;
 
   jwt_signature?: string;
+  jwt_unless?: (req: any) => boolean;
 
   /**
    * business rules and access control

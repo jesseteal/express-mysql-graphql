@@ -51,7 +51,12 @@ export const mysgraphile = (config: MySQLGraphQLConfig) => {
       if (config.jwt_signature) {
         app.use(
           path,
-          expressjwt({ secret: config.jwt_signature, algorithms: ["HS256"] }),
+          expressjwt({
+            secret: config.jwt_signature,
+            algorithms: ["HS256"],
+          }).unless({
+            custom: config.jwt_unless,
+          }),
           yoga
         );
       } else {

@@ -135,6 +135,7 @@ export interface MySQLGraphQLConfig {
     enable_graphiql?: boolean;
     graphql_path?: string;
     jwt_signature?: string;
+    jwt_unless?: (req: any) => boolean;
     /**
      * business rules and access control
      * define before/after actions for insert/update/delete

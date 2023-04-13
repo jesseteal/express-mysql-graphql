@@ -55,7 +55,12 @@ var mysgraphile = function (config) {
             graphiql: Boolean(config.enable_graphiql),
         });
         if (config.jwt_signature) {
-            app.use(path, (0, express_jwt_1.expressjwt)({ secret: config.jwt_signature, algorithms: ["HS256"] }), yoga);
+            app.use(path, (0, express_jwt_1.expressjwt)({
+                secret: config.jwt_signature,
+                algorithms: ["HS256"],
+            }).unless({
+                custom: config.jwt_unless,
+            }), yoga);
         }
         else {
             app.use(path, yoga);
