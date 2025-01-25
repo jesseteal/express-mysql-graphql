@@ -1,12 +1,11 @@
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { DateResolver, DateTimeResolver } from "graphql-scalars";
-import { MySQLGraphQLConfig, SimpleObject } from "../types";
+import { MySQLGraphQLConfig } from "../types";
 import K from "./constants";
 
 const mysql = require("mysql2");
 let pool: any = null;
 let connection_config: any = { connectionLimit: 10 };
-// let logger = console.log;
 
 interface WhereArgs {
   wheres: string;
@@ -15,12 +14,6 @@ interface WhereArgs {
 }
 
 const is_set = (value: any) => typeof value !== "undefined";
-
-// export const add_logger = (_logger: any) => {
-//   if (_logger) {
-//     logger = _logger;
-//   }
-// };
 
 /*
   where examples:
@@ -48,7 +41,7 @@ const is_set = (value: any) => typeof value !== "undefined";
 const where_args = (
   where: string,
   table: string,
-  token: SimpleObject,
+  token: Record<string, any>,
   options: MySQLGraphQLConfig,
   subgraph?: boolean
 ): WhereArgs => {
@@ -144,7 +137,6 @@ const cacheDbConnection = (options: {}) => {
 
 const init_pool = async () => {
   if (!pool) {
-    // logger("[mysgql]: create pool");
     pool = await mysql.createPool(connection_config);
   }
 };
@@ -156,7 +148,7 @@ const connect = async () => {
 
 export const query = async (...args: any[]) => {
   const conn = await connect();
-  // logger("[mysgql]: query", { ...args });
+
   return await conn.query(...args).catch(db.dlog);
 };
 
@@ -320,9 +312,13 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
 
     // 'create' resolver
     const createName = "create" + t.TABLE_NAME;
-    resolvers.Mutation[createName] = async (obj: any, args: any) => {
+    resolvers.Mutation[createName] = async (
+      obj: any,
+      args: any,
+      { req }: any
+    ) => {
       let { input } = args;
-      // logger("[mysgql]: mutation", createName, input);
+
       const columns = [];
       const values = [];
       // BEFORE INSERT
@@ -330,6 +326,7 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
         input = await options.rules?.[t.TABLE_NAME]?.before_insert?.({
           model: input,
           db,
+          token: req?.auth,
         });
         if (input === false) {
           return 0; // no insertId available
@@ -361,6 +358,7 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
           model: { id, ...input },
           db,
           row: rows[0],
+          token: req?.auth,
         });
       }
       return id;
@@ -368,7 +366,11 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
 
     // delete resolver
     const deleteName = "delete" + t.TABLE_NAME;
-    resolvers.Mutation[deleteName] = async (obj: any, { input }: any) => {
+    resolvers.Mutation[deleteName] = async (
+      obj: any,
+      { input }: any,
+      { req }: any
+    ) => {
       const keys = t.PKEYS.split(",");
       const columns: string[] = [];
       const values: string[] = [];
@@ -383,6 +385,7 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
           const ok = await options.rules?.[t.TABLE_NAME]?.before_delete?.({
             model: input,
             db,
+            token: req?.auth,
           });
           if (ok === false) {
             return "Delete refused by pre-delete check";
@@ -400,6 +403,7 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
           await options.rules?.[t.TABLE_NAME]?.after_delete?.({
             model,
             db,
+            token: req?.auth,
           });
           return `${res.affectedRows} row(s) deleted.`;
         } else {
@@ -415,7 +419,11 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
 
     // 'update' resolver
     const updateName = "update" + t.TABLE_NAME;
-    resolvers.Mutation[updateName] = async (obj: any, { input }: any) => {
+    resolvers.Mutation[updateName] = async (
+      obj: any,
+      { input }: any,
+      { req }: any
+    ) => {
       const keys = t.PKEYS.split(",");
       let keys_found = true;
       keys.forEach((key: string, i: number) => {
@@ -441,6 +449,7 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
             model: input,
             db,
             row: rows[0],
+            token: req?.auth,
           });
           if (input === false) {
             return null;
@@ -479,13 +488,14 @@ export const generate_schema = async (options: MySQLGraphQLConfig) => {
             model: input,
             db,
             row: rows[0],
+            token: req?.auth,
           });
         }
 
         return rows[0];
       } else {
         // error, insuficient key definition (not all unique columns identified)
-        // logger("[mysgql]: Bad Update, not all keys provided");
+
         return null; // TODO: pass up as error
       }
     };

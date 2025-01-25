@@ -64,11 +64,6 @@ var mysql = require("mysql2");
 var pool = null;
 var connection_config = { connectionLimit: 10 };
 var is_set = function (value) { return typeof value !== "undefined"; };
-// export const add_logger = (_logger: any) => {
-//   if (_logger) {
-//     logger = _logger;
-//   }
-// };
 /*
   where examples:
     GQL:
@@ -204,7 +199,6 @@ var init_pool = function () { return __awaiter(void 0, void 0, void 0, function 
                 if (!!pool) return [3 /*break*/, 2];
                 return [4 /*yield*/, mysql.createPool(connection_config)];
             case 1:
-                // logger("[mysgql]: create pool");
                 pool = _a.sent();
                 _a.label = 2;
             case 2: return [2 /*return*/];
@@ -234,9 +228,7 @@ var query = function () {
                 case 1:
                     conn = _a.sent();
                     return [4 /*yield*/, conn.query.apply(conn, args).catch(db.dlog)];
-                case 2: 
-                // logger("[mysgql]: query", { ...args });
-                return [2 /*return*/, _a.sent()];
+                case 2: return [2 /*return*/, _a.sent()];
             }
         });
     });
@@ -404,65 +396,71 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                     };
                     // 'create' resolver
                     var createName = "create" + t.TABLE_NAME;
-                    resolvers.Mutation[createName] = function (obj, args) { return __awaiter(void 0, void 0, void 0, function () {
-                        var input, columns, values, field, id, keys, where, params, rows;
-                        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-                        return __generator(this, function (_l) {
-                            switch (_l.label) {
-                                case 0:
-                                    input = args.input;
-                                    columns = [];
-                                    values = [];
-                                    if (!((_b = (_a = options.rules) === null || _a === void 0 ? void 0 : _a[t.TABLE_NAME]) === null || _b === void 0 ? void 0 : _b.before_insert)) return [3 /*break*/, 2];
-                                    return [4 /*yield*/, ((_e = (_d = (_c = options.rules) === null || _c === void 0 ? void 0 : _c[t.TABLE_NAME]) === null || _d === void 0 ? void 0 : _d.before_insert) === null || _e === void 0 ? void 0 : _e.call(_d, {
-                                            model: input,
-                                            db: db,
-                                        }))];
-                                case 1:
-                                    input = _l.sent();
-                                    if (input === false) {
-                                        return [2 /*return*/, 0]; // no insertId available
-                                    }
-                                    _l.label = 2;
-                                case 2:
-                                    for (field in input) {
-                                        columns.push(field);
-                                        values.push(input[field]);
-                                    }
-                                    return [4 /*yield*/, conn
-                                            .query("INSERT IGNORE INTO ".concat(t.TABLE_NAME, " (`").concat(columns.join("`,`"), "`) values (").concat(columns.map(function (c) { return "?"; }).join(","), ")"), values)
-                                            .then(function (r) { return r[0].insertId; })
-                                            .catch(db.dlog)];
-                                case 3:
-                                    id = _l.sent();
-                                    if (!((_g = (_f = options.rules) === null || _f === void 0 ? void 0 : _f[t.TABLE_NAME]) === null || _g === void 0 ? void 0 : _g.after_insert)) return [3 /*break*/, 6];
-                                    keys = t.PKEYS.split(",");
-                                    where = keys.map(function (key) { return "".concat(key, "=?"); }).join(" AND ");
-                                    params = keys.map(function (key) { return input[key]; });
-                                    return [4 /*yield*/, conn.query("select * from ".concat(t.TABLE_NAME, " where ").concat(where), params)];
-                                case 4:
-                                    rows = (_l.sent())[0];
-                                    return [4 /*yield*/, ((_k = (_j = (_h = options.rules) === null || _h === void 0 ? void 0 : _h[t.TABLE_NAME]) === null || _j === void 0 ? void 0 : _j.after_insert) === null || _k === void 0 ? void 0 : _k.call(_j, {
-                                            model: __assign({ id: id }, input),
-                                            db: db,
-                                            row: rows[0],
-                                        }))];
-                                case 5:
-                                    _l.sent();
-                                    _l.label = 6;
-                                case 6: return [2 /*return*/, id];
-                            }
-                        });
-                    }); };
-                    // delete resolver
-                    var deleteName = "delete" + t.TABLE_NAME;
-                    resolvers.Mutation[deleteName] = function (obj, _a) {
-                        var input = _a.input;
+                    resolvers.Mutation[createName] = function (obj, args, _a) {
+                        var req = _a.req;
                         return __awaiter(void 0, void 0, void 0, function () {
-                            var keys, columns, values, all_keys_found, ok, model, res, res;
+                            var input, columns, values, field, id, keys, where, params, rows;
                             var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
                             return __generator(this, function (_m) {
                                 switch (_m.label) {
+                                    case 0:
+                                        input = args.input;
+                                        columns = [];
+                                        values = [];
+                                        if (!((_c = (_b = options.rules) === null || _b === void 0 ? void 0 : _b[t.TABLE_NAME]) === null || _c === void 0 ? void 0 : _c.before_insert)) return [3 /*break*/, 2];
+                                        return [4 /*yield*/, ((_f = (_e = (_d = options.rules) === null || _d === void 0 ? void 0 : _d[t.TABLE_NAME]) === null || _e === void 0 ? void 0 : _e.before_insert) === null || _f === void 0 ? void 0 : _f.call(_e, {
+                                                model: input,
+                                                db: db,
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
+                                            }))];
+                                    case 1:
+                                        input = _m.sent();
+                                        if (input === false) {
+                                            return [2 /*return*/, 0]; // no insertId available
+                                        }
+                                        _m.label = 2;
+                                    case 2:
+                                        for (field in input) {
+                                            columns.push(field);
+                                            values.push(input[field]);
+                                        }
+                                        return [4 /*yield*/, conn
+                                                .query("INSERT IGNORE INTO ".concat(t.TABLE_NAME, " (`").concat(columns.join("`,`"), "`) values (").concat(columns.map(function (c) { return "?"; }).join(","), ")"), values)
+                                                .then(function (r) { return r[0].insertId; })
+                                                .catch(db.dlog)];
+                                    case 3:
+                                        id = _m.sent();
+                                        if (!((_h = (_g = options.rules) === null || _g === void 0 ? void 0 : _g[t.TABLE_NAME]) === null || _h === void 0 ? void 0 : _h.after_insert)) return [3 /*break*/, 6];
+                                        keys = t.PKEYS.split(",");
+                                        where = keys.map(function (key) { return "".concat(key, "=?"); }).join(" AND ");
+                                        params = keys.map(function (key) { return input[key]; });
+                                        return [4 /*yield*/, conn.query("select * from ".concat(t.TABLE_NAME, " where ").concat(where), params)];
+                                    case 4:
+                                        rows = (_m.sent())[0];
+                                        return [4 /*yield*/, ((_l = (_k = (_j = options.rules) === null || _j === void 0 ? void 0 : _j[t.TABLE_NAME]) === null || _k === void 0 ? void 0 : _k.after_insert) === null || _l === void 0 ? void 0 : _l.call(_k, {
+                                                model: __assign({ id: id }, input),
+                                                db: db,
+                                                row: rows[0],
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
+                                            }))];
+                                    case 5:
+                                        _m.sent();
+                                        _m.label = 6;
+                                    case 6: return [2 /*return*/, id];
+                                }
+                            });
+                        });
+                    };
+                    // delete resolver
+                    var deleteName = "delete" + t.TABLE_NAME;
+                    resolvers.Mutation[deleteName] = function (obj, _a, _b) {
+                        var input = _a.input;
+                        var req = _b.req;
+                        return __awaiter(void 0, void 0, void 0, function () {
+                            var keys, columns, values, all_keys_found, ok, model, res, res;
+                            var _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+                            return __generator(this, function (_o) {
+                                switch (_o.label) {
                                     case 0:
                                         keys = t.PKEYS.split(",");
                                         columns = [];
@@ -474,35 +472,37 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                                             values.push(input[key]);
                                         });
                                         if (!all_keys_found) return [3 /*break*/, 8];
-                                        if (!((_c = (_b = options.rules) === null || _b === void 0 ? void 0 : _b[t.TABLE_NAME]) === null || _c === void 0 ? void 0 : _c.before_delete)) return [3 /*break*/, 2];
-                                        return [4 /*yield*/, ((_f = (_e = (_d = options.rules) === null || _d === void 0 ? void 0 : _d[t.TABLE_NAME]) === null || _e === void 0 ? void 0 : _e.before_delete) === null || _f === void 0 ? void 0 : _f.call(_e, {
+                                        if (!((_d = (_c = options.rules) === null || _c === void 0 ? void 0 : _c[t.TABLE_NAME]) === null || _d === void 0 ? void 0 : _d.before_delete)) return [3 /*break*/, 2];
+                                        return [4 /*yield*/, ((_g = (_f = (_e = options.rules) === null || _e === void 0 ? void 0 : _e[t.TABLE_NAME]) === null || _f === void 0 ? void 0 : _f.before_delete) === null || _g === void 0 ? void 0 : _g.call(_f, {
                                                 model: input,
                                                 db: db,
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
                                             }))];
                                     case 1:
-                                        ok = _m.sent();
+                                        ok = _o.sent();
                                         if (ok === false) {
                                             return [2 /*return*/, "Delete refused by pre-delete check"];
                                         }
-                                        _m.label = 2;
+                                        _o.label = 2;
                                     case 2:
-                                        if (!((_h = (_g = options.rules) === null || _g === void 0 ? void 0 : _g[t.TABLE_NAME]) === null || _h === void 0 ? void 0 : _h.after_delete)) return [3 /*break*/, 6];
+                                        if (!((_j = (_h = options.rules) === null || _h === void 0 ? void 0 : _h[t.TABLE_NAME]) === null || _j === void 0 ? void 0 : _j.after_delete)) return [3 /*break*/, 6];
                                         return [4 /*yield*/, db.first("select * from ".concat(t.TABLE_NAME, " where ").concat(columns.join(" AND ")), values)];
                                     case 3:
-                                        model = _m.sent();
+                                        model = _o.sent();
                                         return [4 /*yield*/, conn.query("DELETE FROM ".concat(t.TABLE_NAME, " WHERE ").concat(columns.join(" AND ")), values)];
                                     case 4:
-                                        res = (_m.sent())[0];
-                                        return [4 /*yield*/, ((_l = (_k = (_j = options.rules) === null || _j === void 0 ? void 0 : _j[t.TABLE_NAME]) === null || _k === void 0 ? void 0 : _k.after_delete) === null || _l === void 0 ? void 0 : _l.call(_k, {
+                                        res = (_o.sent())[0];
+                                        return [4 /*yield*/, ((_m = (_l = (_k = options.rules) === null || _k === void 0 ? void 0 : _k[t.TABLE_NAME]) === null || _l === void 0 ? void 0 : _l.after_delete) === null || _m === void 0 ? void 0 : _m.call(_l, {
                                                 model: model,
                                                 db: db,
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
                                             }))];
                                     case 5:
-                                        _m.sent();
+                                        _o.sent();
                                         return [2 /*return*/, "".concat(res.affectedRows, " row(s) deleted.")];
                                     case 6: return [4 /*yield*/, conn.query("DELETE FROM ".concat(t.TABLE_NAME, " WHERE ").concat(columns.join(" AND ")), values)];
                                     case 7:
-                                        res = (_m.sent())[0];
+                                        res = (_o.sent())[0];
                                         return [2 /*return*/, "".concat(res.affectedRows, " row(s) deleted.")];
                                     case 8: return [2 /*return*/, "Delete Failed - missing primary keys"];
                                 }
@@ -511,13 +511,14 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                     };
                     // 'update' resolver
                     var updateName = "update" + t.TABLE_NAME;
-                    resolvers.Mutation[updateName] = function (obj, _a) {
+                    resolvers.Mutation[updateName] = function (obj, _a, _b) {
                         var input = _a.input;
+                        var req = _b.req;
                         return __awaiter(void 0, void 0, void 0, function () {
                             var keys, keys_found, sets, update_params, set_where, where_params, fields, values, where_1, params_1, rows, field, where, params, rows;
-                            var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
-                            return __generator(this, function (_m) {
-                                switch (_m.label) {
+                            var _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+                            return __generator(this, function (_o) {
+                                switch (_o.label) {
                                     case 0:
                                         keys = t.PKEYS.split(",");
                                         keys_found = true;
@@ -531,23 +532,24 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                                         where_params = [];
                                         fields = [];
                                         values = [];
-                                        if (!((_c = (_b = options.rules) === null || _b === void 0 ? void 0 : _b[t.TABLE_NAME]) === null || _c === void 0 ? void 0 : _c.before_update)) return [3 /*break*/, 3];
+                                        if (!((_d = (_c = options.rules) === null || _c === void 0 ? void 0 : _c[t.TABLE_NAME]) === null || _d === void 0 ? void 0 : _d.before_update)) return [3 /*break*/, 3];
                                         where_1 = keys.map(function (key) { return "".concat(key, "=?"); }).join(" AND ");
                                         params_1 = keys.map(function (key) { return input[key]; });
                                         return [4 /*yield*/, conn.query("select * from ".concat(t.TABLE_NAME, " where ").concat(where_1), params_1)];
                                     case 1:
-                                        rows = (_m.sent())[0];
-                                        return [4 /*yield*/, ((_f = (_e = (_d = options.rules) === null || _d === void 0 ? void 0 : _d[t.TABLE_NAME]) === null || _e === void 0 ? void 0 : _e.before_update) === null || _f === void 0 ? void 0 : _f.call(_e, {
+                                        rows = (_o.sent())[0];
+                                        return [4 /*yield*/, ((_g = (_f = (_e = options.rules) === null || _e === void 0 ? void 0 : _e[t.TABLE_NAME]) === null || _f === void 0 ? void 0 : _f.before_update) === null || _g === void 0 ? void 0 : _g.call(_f, {
                                                 model: input,
                                                 db: db,
                                                 row: rows[0],
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
                                             }))];
                                     case 2:
-                                        input = _m.sent();
+                                        input = _o.sent();
                                         if (input === false) {
                                             return [2 /*return*/, null];
                                         }
-                                        _m.label = 3;
+                                        _o.label = 3;
                                     case 3:
                                         for (field in input) {
                                             fields.push(field);
@@ -564,25 +566,25 @@ var generate_schema = function (options) { return __awaiter(void 0, void 0, void
                                         }
                                         return [4 /*yield*/, conn.query("UPDATE ".concat(t.TABLE_NAME, "\n            SET ").concat(sets.join(","), "\n            WHERE ").concat(set_where.join(" AND "), "\n          "), update_params.concat(where_params))];
                                     case 4:
-                                        _m.sent();
+                                        _o.sent();
                                         where = keys.map(function (key) { return "".concat(key, "=?"); }).join(" AND ");
                                         params = keys.map(function (key) { return input[key]; });
                                         return [4 /*yield*/, conn.query("select * from ".concat(t.TABLE_NAME, " where ").concat(where), params)];
                                     case 5:
-                                        rows = (_m.sent())[0];
-                                        if (!((_h = (_g = options.rules) === null || _g === void 0 ? void 0 : _g[t.TABLE_NAME]) === null || _h === void 0 ? void 0 : _h.after_update)) return [3 /*break*/, 7];
-                                        return [4 /*yield*/, ((_l = (_k = (_j = options.rules) === null || _j === void 0 ? void 0 : _j[t.TABLE_NAME]) === null || _k === void 0 ? void 0 : _k.after_update) === null || _l === void 0 ? void 0 : _l.call(_k, {
+                                        rows = (_o.sent())[0];
+                                        if (!((_j = (_h = options.rules) === null || _h === void 0 ? void 0 : _h[t.TABLE_NAME]) === null || _j === void 0 ? void 0 : _j.after_update)) return [3 /*break*/, 7];
+                                        return [4 /*yield*/, ((_m = (_l = (_k = options.rules) === null || _k === void 0 ? void 0 : _k[t.TABLE_NAME]) === null || _l === void 0 ? void 0 : _l.after_update) === null || _m === void 0 ? void 0 : _m.call(_l, {
                                                 model: input,
                                                 db: db,
                                                 row: rows[0],
+                                                token: req === null || req === void 0 ? void 0 : req.auth,
                                             }))];
                                     case 6:
-                                        _m.sent();
-                                        _m.label = 7;
+                                        _o.sent();
+                                        _o.label = 7;
                                     case 7: return [2 /*return*/, rows[0]];
                                     case 8: 
                                     // error, insuficient key definition (not all unique columns identified)
-                                    // logger("[mysgql]: Bad Update, not all keys provided");
                                     return [2 /*return*/, null]; // TODO: pass up as error
                                 }
                             });

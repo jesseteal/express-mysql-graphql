@@ -4,13 +4,11 @@ export interface DbConnectionParams {
     password: string;
     database: string;
 }
-export interface SimpleObject {
-    [key: string]: any;
-}
 interface RuleParams {
-    model: SimpleObject;
+    model: Record<string, any>;
     db: any;
     row?: any;
+    token?: Record<string, any>;
 }
 /**
  * example return value
@@ -45,18 +43,18 @@ export interface RuleDefinition {
      * before insert preprocessing returns modified data object
      * or false if insert is not allowed
      */
-    before_insert?: (props: RuleParams) => SimpleObject | boolean;
+    before_insert?: (props: RuleParams) => Record<string, any> | boolean;
     /**
      * before update preprocessing returns modified data object
      * or false if insert is not allowed
      */
-    before_update?: (props: RuleParams) => SimpleObject | boolean;
+    before_update?: (props: RuleParams) => Record<string, any> | boolean;
     /**
      * based on JWT data, return SQL to append to WHERE
      * AND is used
      */
-    restrict?: (jwt: SimpleObject) => string;
-    restrict_subgraph?: (jwt: SimpleObject) => string;
+    restrict?: (jwt: Record<string, any>) => string;
+    restrict_subgraph?: (jwt: Record<string, any>) => string;
 }
 export interface RuleDefinitionSet {
     [table_name: string]: RuleDefinition;

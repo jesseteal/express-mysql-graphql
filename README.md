@@ -4,7 +4,6 @@ Create a graphql endpoint for an express.js server with MySQL backend.
 
 There are still limitations and pitfalls. This is a work-in-progress.
 
-
 ## Install
 
 This module is not ready yet
@@ -41,7 +40,6 @@ GraphiQL is available if `enable_graphiql` is set to true.
 
 You can create your own custom types, resolvers, and mutations. (Documentation not yet available.)
 
-
 ## Add Insert, Update, and Delete hooks
 
 ```
@@ -51,7 +49,7 @@ app.use(mysgraphile({
     ...(connection data),
     enable_graphiql: true,
     hooks: {
-      before_insert: async (table, model, db) => {
+      before_insert: async ({table, model, db}) => {
         switch (table) {
           case 'user':
             var exists = await db.first('select id from user where email=?',[model.email]);
@@ -89,7 +87,9 @@ app.use(mysgraphile({
     }
   }))
 ```
+
 ## Roadmap
+
 - [ ] Add usage documentation
 - [ ] Limit how deep graph queries can go
 - [ ] Refactor
