@@ -16,14 +16,14 @@ In your express app:
 
 ```js
 const express = require("express");
-const mysgraphile = require("@jesseteal/express-mysql-graphql");
+const mysqlGraphql = require("@jesseteal/express-mysql-graphql");
 
 const app = express();
 
 // Add your routes and middleware first.
 
 app.use(
-  mysgraphile({
+  mysqlGraphql({
     connection: {
       host: process.env.MYSQL_HOST || "localhost",
       database: process.env.MYSQL_DATABASE,
@@ -40,10 +40,10 @@ app.listen(3000);
 You can also use TypeScript or ESM-style imports:
 
 ```ts
-import mysgraphile from "@jesseteal/express-mysql-graphql";
+import mysqlGraphql from "@jesseteal/express-mysql-graphql";
 
 app.use(
-  mysgraphile({
+  mysqlGraphql({
     connection: {
       database: process.env.MYSQL_DATABASE,
       user: process.env.MYSQL_USER,
@@ -65,10 +65,10 @@ You can create your own custom types, resolvers, and mutations. (Documentation n
 ## Add Insert, Update, and Delete hooks
 
 ```js
-const mysgraphile = require("@jesseteal/express-mysql-graphql");
+const mysqlGraphql = require("@jesseteal/express-mysql-graphql");
 
 app.use(
-  mysgraphile({
+  mysqlGraphql({
     connection: {
       host: process.env.MYSQL_HOST || "localhost",
       database: process.env.MYSQL_DATABASE,
@@ -97,10 +97,10 @@ app.use(
 ## Restrict table/row access by Token
 
 ```js
-const mysgraphile = require("@jesseteal/express-mysql-graphql");
+const mysqlGraphql = require("@jesseteal/express-mysql-graphql");
 
 app.use(
-  mysgraphile({
+  mysqlGraphql({
     connection: {
       host: process.env.MYSQL_HOST || "localhost",
       database: process.env.MYSQL_DATABASE,

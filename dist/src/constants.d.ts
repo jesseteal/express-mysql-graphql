@@ -1,5 +1,5 @@
 declare const _default: {
-    SQL_RELATIONSHIPS: (schema: string) => string;
-    SQL_SCHEMA: (schema: string) => string;
+    SQL_RELATIONSHIPS: (db_name: string) => string;
+    SQL_SCHEMA: (db_name: string) => string;
 };
 export default _default;

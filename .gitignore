@@ -1,3 +1,4 @@
 node_modules
+.pnpm-store
 .vscode
 .DS_Store
