@@ -1,15 +1,15 @@
-const SQL_RELATIONSHIPS = (schema: string) => `select
+const SQL_RELATIONSHIPS = (db_name: string) => `select
   t.TABLE_NAME,
   t.REFERENCED_TABLE_NAME as LINKED_TABLE,
   t.COLUMN_NAME as FROM_COL,
   t.REFERENCED_COLUMN_NAME AS TO_COL
   from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-  WHERE t.TABLE_SCHEMA='${schema}'
+  WHERE t.TABLE_SCHEMA='${db_name}'
   AND t.REFERENCED_TABLE_NAME IS NOT NULL
   ORDER BY t.TABLE_NAME
 `;
 
-const SQL_SCHEMA = (schema: string) => `select
+const SQL_SCHEMA = (db_name: string) => `select
     q1.TABLE_NAME,
     q1.types,
     pk.PKEYS,
@@ -37,14 +37,14 @@ const SQL_SCHEMA = (schema: string) => `select
               case when IS_NULLABLE = 'NO' AND COLUMN_KEY <> 'PRI' then '!' else '' end
         ) as COLUMNS
       FROM INFORMATION_SCHEMA.COLUMNS c
-      WHERE c.TABLE_SCHEMA='${schema}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
+      WHERE c.TABLE_SCHEMA='${db_name}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
       union
       -- FK references
       select
       t.TABLE_NAME,
       concat('\t',t.COLUMN_NAME,'_',t.REFERENCED_TABLE_NAME,'(where: String): ',t.REFERENCED_TABLE_NAME) as COLUMNS
       from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-      WHERE t.TABLE_SCHEMA='${schema}'
+      WHERE t.TABLE_SCHEMA='${db_name}'
       AND t.REFERENCED_TABLE_NAME IS NOT NULL
       -- reverse FK (children)
       union
@@ -52,10 +52,10 @@ const SQL_SCHEMA = (schema: string) => `select
       t.REFERENCED_TABLE_NAME,
       concat('\t',case when TABLE_NAME = REFERENCED_TABLE_NAME then SUBSTRING(t.COLUMN_NAME,1,LENGTH(t.COLUMN_NAME)-2) else t.TABLE_NAME end,'(limit: Int, offset: Int, where: String, order: String): [',t.TABLE_NAME,']') as COLUMNS
       from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-      WHERE t.TABLE_SCHEMA='${schema}'
+      WHERE t.TABLE_SCHEMA='${db_name}'
       AND t.REFERENCED_TABLE_NAME IS NOT NULL
           ) q on q.TABLE_NAME=t.TABLE_NAME
-          WHERE t.TABLE_SCHEMA='${schema}'
+          WHERE t.TABLE_SCHEMA='${db_name}'
           AND TABLE_COMMENT not LIKE '@Omit'
           GROUP BY t.TABLE_NAME
       )q1
@@ -71,14 +71,14 @@ const SQL_SCHEMA = (schema: string) => `select
             ELSE ' String' end
         ) as COLUMNS
         FROM INFORMATION_SCHEMA.COLUMNS c
-        WHERE c.TABLE_SCHEMA='${schema}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
+        WHERE c.TABLE_SCHEMA='${db_name}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
   ) q2 on q1.TABLE_NAME=q2.TABLE_NAME
   INNER JOIN (
     SELECT
       t.TABLE_NAME,group_concat(c.COLUMN_NAME) AS PKEYS
     FROM INFORMATION_SCHEMA.TABLES t
       LEFT JOIN INFORMATION_SCHEMA.COLUMNS c on c.TABLE_NAME=t.TABLE_NAME
-    WHERE t.TABLE_SCHEMA='${schema}' AND c.TABLE_SCHEMA='${schema}'
+    WHERE t.TABLE_SCHEMA='${db_name}' AND c.TABLE_SCHEMA='${db_name}'
       AND t.TABLE_COMMENT not LIKE '@Omit'
       AND c.COLUMN_KEY='PRI'
     group by t.TABLE_NAME

@@ -6,5 +6,6 @@
     "outDir": "./dist",
     "skipLibCheck": true,
     "strict": true
-  }
+  },
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

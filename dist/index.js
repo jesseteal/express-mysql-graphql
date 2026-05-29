@@ -71,3 +71,6 @@ var mysgraphile = function (config) {
 };
 exports.mysgraphile = mysgraphile;
 exports.default = exports.mysgraphile;
+module.exports = exports.mysgraphile;
+module.exports.default = exports.mysgraphile;
+module.exports.mysgraphile = exports.mysgraphile;

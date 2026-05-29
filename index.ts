@@ -68,3 +68,7 @@ export const mysgraphile = (config: MySQLGraphQLConfig) => {
 };
 
 export default mysgraphile;
+
+module.exports = mysgraphile;
+module.exports.default = mysgraphile;
+module.exports.mysgraphile = mysgraphile;

@@ -6,30 +6,52 @@ There are still limitations and pitfalls. This is a work-in-progress.
 
 ## Install
 
-This module is not ready yet
+```bash
+npm install @jesseteal/express-mysql-graphql
+```
 
 ## Usage
 
 In your express app:
 
+```js
+const express = require("express");
+const mysgraphile = require("@jesseteal/express-mysql-graphql");
+
+const app = express();
+
+// Add your routes and middleware first.
+
+app.use(
+  mysgraphile({
+    connection: {
+      host: process.env.MYSQL_HOST || "localhost",
+      database: process.env.MYSQL_DATABASE,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASS,
+    },
+    enable_graphiql: true,
+  }),
+);
+
+app.listen(3000);
 ```
-var express = require('express');
-var mysgraphile = require('@jesseteal/express-mysql-graphql');
 
-var app = express();
+You can also use TypeScript or ESM-style imports:
 
-... // <all your routes and middleware>
+```ts
+import mysgraphile from "@jesseteal/express-mysql-graphql";
 
-app.use(mysgraphile({
-  connection: {
-    database: process.env.MYSQL_DATABASE,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASS
-  },
-  enable_graphiql: true,
-}))
-
-...
+app.use(
+  mysgraphile({
+    connection: {
+      database: process.env.MYSQL_DATABASE,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASS,
+    },
+    enable_graphiql: true,
+  }),
+);
 ```
 
 You can now query against http://servername/graphql
@@ -42,54 +64,60 @@ You can create your own custom types, resolvers, and mutations. (Documentation n
 
 ## Add Insert, Update, and Delete hooks
 
-```
-const mysgraphile = require('@jesseteal/express-mysql-graphql');
+```js
+const mysgraphile = require("@jesseteal/express-mysql-graphql");
 
-app.use(mysgraphile({
-    ...(connection data),
+app.use(
+  mysgraphile({
+    connection: {
+      host: process.env.MYSQL_HOST || "localhost",
+      database: process.env.MYSQL_DATABASE,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASS,
+    },
     enable_graphiql: true,
-    hooks: {
-      before_insert: async ({table, model, db}) => {
-        switch (table) {
-          case 'user':
-            var exists = await db.first('select id from user where email=?',[model.email]);
-            console.log('exists',exists);
-            if(exists){
-              return false;
-            }
-            model.password = utils.hash(model.password); // hash new passwords before save
-            break;
-          default:
-
-        }
-        return model; // return (possibly) modified data
-      }
-    }
-  }))
+    rules: {
+      user: {
+        before_insert: async ({ model, db }) => {
+          const exists = await db.first("select id from user where email=?", [
+            model.email,
+          ]);
+          if (exists) {
+            return false;
+          }
+          model.password = utils.hash(model.password);
+          return model;
+        },
+      },
+    },
+  }),
+);
 ```
 
 ## Restrict table/row access by Token
 
-```
-const mysgraphile = require('@jesseteal/express-mysql-graphql');
+```js
+const mysgraphile = require("@jesseteal/express-mysql-graphql");
 
-app.use(mysgraphile({
-    ...(connection data),
+app.use(
+  mysgraphile({
+    connection: {
+      host: process.env.MYSQL_HOST || "localhost",
+      database: process.env.MYSQL_DATABASE,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASS,
+    },
     enable_graphiql: true,
-    access_limit: {
-      user: token => {
-        if(token.role === 'Admin'){
-          return null;
-        }
-        // all other users can only pull themselves
-        return 'id=' + token.sub; // return SQL where statement to add to list of others
-      }
-    }
-  }))
+    rules: {
+      user: {
+        restrict: (token) => {
+          if (token.role === "Admin") {
+            return null;
+          }
+          return `id=${Number(token.sub)}`;
+        },
+      },
+    },
+  }),
+);
 ```
-
-## Roadmap
-
-- [ ] Add usage documentation
-- [ ] Limit how deep graph queries can go
-- [ ] Refactor
