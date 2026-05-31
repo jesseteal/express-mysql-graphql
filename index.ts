@@ -1,6 +1,7 @@
 import { createYoga } from "graphql-yoga";
 import { GraphQLSchema } from "graphql";
-import { generate_schema } from "./src/db";
+import { createDbContext } from "./src/connection";
+import { generateSchema } from "./src/schema";
 import { DbConnectionParams, MySQLGraphQLConfig } from "./types";
 import { expressjwt } from "express-jwt";
 
@@ -23,9 +24,13 @@ const db_connection_defaults: DbConnectionParams = {
   database: "",
 };
 
-export const mysgraphile = (config: MySQLGraphQLConfig) => {
+export const mysqlGraphql = (config: MySQLGraphQLConfig) => {
   const app = express();
-  generate_schema({
+  const db = createDbContext({
+    ...db_connection_defaults,
+    ...config.connection,
+  });
+  const options = {
     connection: {
       ...db_connection_defaults,
       ...config.connection,
@@ -40,12 +45,17 @@ export const mysgraphile = (config: MySQLGraphQLConfig) => {
     custom_query_resolvers: config.custom_query_resolvers,
     custom_mutation_resolvers: config.custom_mutation_resolvers,
     custom_resolvers: config.custom_resolvers,
-  })
+  };
+
+  app.locals.mysqlGraphql = {
+    close: db.close,
+  };
+
+  generateSchema(options, db)
     .then((schema: GraphQLSchema) => {
       const path = config.graphql_path || "/graphql";
       const yoga = createYoga({
         schema,
-        // context: ({ req }: any) => ({ token: 'xxx'}),
         graphiql: Boolean(config.enable_graphiql),
       });
       if (config.jwt_signature) {
@@ -57,7 +67,7 @@ export const mysgraphile = (config: MySQLGraphQLConfig) => {
           }).unless({
             custom: config.jwt_unless,
           }),
-          yoga
+          yoga,
         );
       } else {
         app.use(path, yoga);
@@ -67,8 +77,9 @@ export const mysgraphile = (config: MySQLGraphQLConfig) => {
   return app;
 };
 
-export default mysgraphile;
+export default mysqlGraphql;
+export type * from "./types";
 
-module.exports = mysgraphile;
-module.exports.default = mysgraphile;
-module.exports.mysgraphile = mysgraphile;
+module.exports = mysqlGraphql;
+module.exports.default = mysqlGraphql;
+module.exports.mysqlGraphql = mysqlGraphql;

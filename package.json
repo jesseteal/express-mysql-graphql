@@ -1,6 +1,6 @@
 {
   "name": "@jesseteal/express-mysql-graphql",
-  "version": "2.0.4",
+  "version": "3.0.0",
   "description": "Create graphql endpoint for express / mysql",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -56,6 +56,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.1",
     "jest": "^30.4.2",
+    "prettier": "^3.8.3",
     "ts-jest": "^29.4.11",
     "typescript": "^6.0.3"
   }

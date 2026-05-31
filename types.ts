@@ -3,62 +3,81 @@ export interface DbConnectionParams {
   user: string;
   password: string;
   database: string;
+  connectionLimit?: number;
+  [key: string]: unknown;
 }
 
-interface RuleParams {
-  // table: string;
+export interface DbClient {
+  first: (...args: any[]) => Promise<any>;
+  query: (...args: any[]) => Promise<any>;
+  select: (...args: any[]) => Promise<any[]>;
+  close: () => Promise<void>;
+  quit: () => Promise<void>;
+}
+
+export interface RuleParams {
   model: Record<string, any>;
-  db: any;
-  row?: any; // before/after update only
+  db: DbClient;
+  row?: any;
   token?: Record<string, any>;
 }
 
-/**
- * example return value
- *  {
- *    potato: async (parent, args) => `tomato`
- *  };
- */
-interface CustomQueryResolver {
-  [query_name: string]: (parent: any, args: any) => any;
+export interface ResolverContext {
+  req?: {
+    auth?: Record<string, any>;
+    user?: Record<string, any>;
+    [key: string]: any;
+  };
 }
-interface CustomResolver {
+
+export interface QueryArgs {
+  limit?: number;
+  offset?: number;
+  where?: string;
+  order?: string;
+}
+
+export interface TableMetadata {
+  TABLE_NAME: string;
+  PKEYS: string;
+  inputs: string;
+  types: string;
+}
+
+export interface RelationshipMetadata {
+  TABLE_NAME: string;
+  LINKED_TABLE: string;
+  FROM_COL: string;
+  TO_COL: string;
+}
+
+export interface CustomQueryResolver {
+  [query_name: string]: (
+    parent: any,
+    args: any,
+    context?: ResolverContext,
+  ) => any;
+}
+
+export interface CustomResolver {
   [table_name: string]: CustomQueryResolver | ((parent: any, args: any) => any);
 }
 
+export type RuleResult<T> = T | Promise<T>;
+
 export interface RuleDefinition {
-  /**
-   * after delete action (optional)
-   */
-  after_delete?: (props: RuleParams) => void;
-  /**
-   * after insert action (optional)
-   */
-  after_insert?: (props: RuleParams) => void;
-  /**
-   * after update action (optional)
-   */
-  after_update?: (props: RuleParams) => void;
-  /**
-   * before deletion, return false to disallow/abort
-   */
-  before_delete?: (props: RuleParams) => boolean;
-  /**
-   * before insert preprocessing returns modified data object
-   * or false if insert is not allowed
-   */
-  before_insert?: (props: RuleParams) => Record<string, any> | boolean;
-  /**
-   * before update preprocessing returns modified data object
-   * or false if insert is not allowed
-   */
-  before_update?: (props: RuleParams) => Record<string, any> | boolean;
-  /**
-   * based on JWT data, return SQL to append to WHERE
-   * AND is used
-   */
-  restrict?: (jwt: Record<string, any>) => string;
-  restrict_subgraph?: (jwt: Record<string, any>) => string;
+  after_delete?: (props: RuleParams) => RuleResult<void>;
+  after_insert?: (props: RuleParams) => RuleResult<void>;
+  after_update?: (props: RuleParams) => RuleResult<void>;
+  before_delete?: (props: RuleParams) => RuleResult<boolean>;
+  before_insert?: (
+    props: RuleParams,
+  ) => RuleResult<Record<string, any> | boolean>;
+  before_update?: (
+    props: RuleParams,
+  ) => RuleResult<Record<string, any> | boolean>;
+  restrict?: (jwt: Record<string, any>) => string | null | undefined;
+  restrict_subgraph?: (jwt: Record<string, any>) => string | null | undefined;
 }
 
 export interface RuleDefinitionSet {
@@ -151,3 +170,5 @@ export interface MySQLGraphQLConfig {
    */
   rules?: RuleDefinitionSet;
 }
+
+export type MysqlGraphqlConfig = MySQLGraphQLConfig;

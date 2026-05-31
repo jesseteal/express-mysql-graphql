@@ -1,15 +1,20 @@
-const SQL_RELATIONSHIPS = (db_name: string) => `select
+export interface SqlStatement {
+  sql: string;
+  params: any[];
+}
+
+const SQL_RELATIONSHIPS = `select
   t.TABLE_NAME,
   t.REFERENCED_TABLE_NAME as LINKED_TABLE,
   t.COLUMN_NAME as FROM_COL,
   t.REFERENCED_COLUMN_NAME AS TO_COL
   from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-  WHERE t.TABLE_SCHEMA='${db_name}'
+  WHERE t.TABLE_SCHEMA=?
   AND t.REFERENCED_TABLE_NAME IS NOT NULL
   ORDER BY t.TABLE_NAME
 `;
 
-const SQL_SCHEMA = (db_name: string) => `select
+const SQL_SCHEMA = `select
     q1.TABLE_NAME,
     q1.types,
     pk.PKEYS,
@@ -37,14 +42,14 @@ const SQL_SCHEMA = (db_name: string) => `select
               case when IS_NULLABLE = 'NO' AND COLUMN_KEY <> 'PRI' then '!' else '' end
         ) as COLUMNS
       FROM INFORMATION_SCHEMA.COLUMNS c
-      WHERE c.TABLE_SCHEMA='${db_name}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
+      WHERE c.TABLE_SCHEMA=? AND c.COLUMN_COMMENT NOT LIKE '@Omit'
       union
       -- FK references
       select
       t.TABLE_NAME,
       concat('\t',t.COLUMN_NAME,'_',t.REFERENCED_TABLE_NAME,'(where: String): ',t.REFERENCED_TABLE_NAME) as COLUMNS
       from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-      WHERE t.TABLE_SCHEMA='${db_name}'
+      WHERE t.TABLE_SCHEMA=?
       AND t.REFERENCED_TABLE_NAME IS NOT NULL
       -- reverse FK (children)
       union
@@ -52,10 +57,10 @@ const SQL_SCHEMA = (db_name: string) => `select
       t.REFERENCED_TABLE_NAME,
       concat('\t',case when TABLE_NAME = REFERENCED_TABLE_NAME then SUBSTRING(t.COLUMN_NAME,1,LENGTH(t.COLUMN_NAME)-2) else t.TABLE_NAME end,'(limit: Int, offset: Int, where: String, order: String): [',t.TABLE_NAME,']') as COLUMNS
       from INFORMATION_SCHEMA.KEY_COLUMN_USAGE t
-      WHERE t.TABLE_SCHEMA='${db_name}'
+      WHERE t.TABLE_SCHEMA=?
       AND t.REFERENCED_TABLE_NAME IS NOT NULL
           ) q on q.TABLE_NAME=t.TABLE_NAME
-          WHERE t.TABLE_SCHEMA='${db_name}'
+          WHERE t.TABLE_SCHEMA=?
           AND TABLE_COMMENT not LIKE '@Omit'
           GROUP BY t.TABLE_NAME
       )q1
@@ -71,14 +76,14 @@ const SQL_SCHEMA = (db_name: string) => `select
             ELSE ' String' end
         ) as COLUMNS
         FROM INFORMATION_SCHEMA.COLUMNS c
-        WHERE c.TABLE_SCHEMA='${db_name}' AND c.COLUMN_COMMENT NOT LIKE '@Omit'
+        WHERE c.TABLE_SCHEMA=? AND c.COLUMN_COMMENT NOT LIKE '@Omit'
   ) q2 on q1.TABLE_NAME=q2.TABLE_NAME
   INNER JOIN (
     SELECT
       t.TABLE_NAME,group_concat(c.COLUMN_NAME) AS PKEYS
     FROM INFORMATION_SCHEMA.TABLES t
       LEFT JOIN INFORMATION_SCHEMA.COLUMNS c on c.TABLE_NAME=t.TABLE_NAME
-    WHERE t.TABLE_SCHEMA='${db_name}' AND c.TABLE_SCHEMA='${db_name}'
+    WHERE t.TABLE_SCHEMA=? AND c.TABLE_SCHEMA=?
       AND t.TABLE_COMMENT not LIKE '@Omit'
       AND c.COLUMN_KEY='PRI'
     group by t.TABLE_NAME
@@ -87,7 +92,40 @@ const SQL_SCHEMA = (db_name: string) => `select
   group by q1.TABLE_NAME
 `;
 
+const SQL_COLUMNS = `select
+  COLUMN_NAME as \`column\`,
+  case WHEN IS_NULLABLE = 'NO' AND COLUMN_KEY <> 'PRI' then 1 else 0 end as required,
+  case
+    when DATA_TYPE IN ('bigint','int','tinyint') then 'int'
+    WHEN DATA_TYPE IN ('double','float','decimal') then 'decimal'
+    when DATA_TYPE in ('date','datetime') then DATA_TYPE
+    else 'string'
+  end as \`type\`
+FROM INFORMATION_SCHEMA.COLUMNS c
+where TABLE_SCHEMA=?
+  and TABLE_NAME=?
+order by ORDINAL_POSITION`;
+
+export const schemaStatement = (dbName: string): SqlStatement => ({
+  sql: SQL_SCHEMA,
+  params: [dbName, dbName, dbName, dbName, dbName, dbName, dbName],
+});
+
+export const relationshipsStatement = (dbName: string): SqlStatement => ({
+  sql: SQL_RELATIONSHIPS,
+  params: [dbName],
+});
+
+export const columnsStatement = (
+  dbName: string,
+  table: string,
+): SqlStatement => ({
+  sql: SQL_COLUMNS,
+  params: [dbName, table],
+});
+
 export default {
-  SQL_RELATIONSHIPS,
-  SQL_SCHEMA,
+  columnsStatement,
+  relationshipsStatement,
+  schemaStatement,
 };
